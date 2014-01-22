@@ -4,7 +4,7 @@
  * Plugin Name: HTTPS domain alias
  * Plugin URI: https://github.com/Seravo/wp-https-domain-alias
  * Description: Enable your site to have a different domains for HTTP and HTTPS. Useful e.g. if you have a wildcard SSL/TLS certificate for server but not for each site.
- * Version: 0.3
+ * Version: 0.4
  * Author: Otto Kekäläinen / Seravo Oy
  * Author URI: http://seravo.fi
  * License: GPLv3
@@ -18,7 +18,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
@@ -29,64 +29,73 @@
 /**
  * @package HTTPS_Domain_Alias
  *
- * Swap out the current site domain with {@see HTTPS_DOMAIN_ALIAS} if the
+ * Make sure a https capable domain is used {@see HTTPS_DOMAIN_ALIAS} if the
  * protocol is HTTPS.
  *
- * This function is not bulletproof, and expects both {@see WP_SITEURL} and
- * {@see SSL_DOMAIN_ALIAS} to be defined.
- *
  * Make sure the wp-config.php defines the needed constants, e.g.
- *   define( 'WP_SITEURL', 'http://coss.fi' );
- *   define( 'SSL_DOMAIN_ALIAS', 'coss.seravo.fi' );
- *   define( 'FORCE_SSL_LOGIN', true );
- *   define( 'FORCE_SSL_ADMIN', true );
+ *   define('FORCE_SSL_LOGIN', true);
+ *   define('FORCE_SSL_ADMIN', true);
+ *   define('HTTPS_DOMAIN_ALIAS', 'coss.seravo.fi');
  *
+ * On a WordPress Network install HTTPS_DOMAIN_ALIAS can also be
+ * defined with a wildcard, e.g. '*.seravo.fi'.
+ * Compatible with WordPress MU Domain Mapping.
  *
- * @param string $url
- * @return string
- */
-function _https_domain_alias($url) {
-  static $domain;
-  if (!isset($domain)) {
-    $domain = defined('WP_SITEURL') && defined('HTTPS_DOMAIN_ALIAS') ? parse_url( WP_SITEURL, PHP_URL_HOST) : false;
-  }
-
-  if ($domain && strpos($url, 'https') === 0 ) {
-    $url = str_replace($domain, HTTPS_DOMAIN_ALIAS, $url);
-  }
-
-  return $url;
-}
-add_filter( 'plugins_url', '_https_domain_alias', 1 );
-add_filter( 'content_url', '_https_domain_alias', 1 );
-add_filter( 'site_url', '_https_domain_alias', 1 );
-
-
-/**
- * Make sure no redirect never points to https://coss.fi/..
- * but instead * always to https://coss.seravo.fi/...
+ * Example:
+ *  Redirect never points to https://coss.fi/..
+ *  but instead always to https://coss.seravo.fi/...
  *
- * Intended to be used in combination with plugin https-alias-domain.php
+ * For more information see readme.txt
  *
  * @param string $url
  * @param string $status (optional, not used in this function)
  * @return string
  */
-function _redirect_https_domain_rewrite($location, $status = 0) {
+function _https_domain_rewrite($url, $status = 0) {
+  //debug: error_log("status=$status");
+  //debug: error_log("url-i=$url");
 
-//debug: error_log("status=$status");
-//debug: error_log("Location-i=$location");
+  // If scheme not https, don't rewrite.
+  if (substr($url, 0, 5) == 'https') {
 
-  $locationUrl = parse_url($location);
-  $siteUrl = parse_url(WP_SITEURL);
-  if ($locationUrl['scheme'] == 'https' && $locationUrl['host'] == $siteUrl['host']) {
-    $location = str_ireplace($siteUrl['host'], HTTPS_DOMAIN_ALIAS, $location);
+    // Assume domain is always same for all calls to this function
+    // during same request and thus define some variables as static.
+    static $domain;
+    if (!isset($domain)) {
+      $domain = parse_url(home_url(), PHP_URL_HOST);
+      //debug: error_log("domain=$domain");
+    }
+
+    static $domainAlias;
+    if (!isset($domainAlias)) {
+       if (substr(HTTPS_DOMAIN_ALIAS, -strlen($domain)) == $domain) {
+        // Special case: $domainAlias ends with $domain,
+        // which is possible in WP Network when requesting
+        // the main site, don't rewrite urls as a https
+        // certificate for sure exists for direct domain.
+        // e.g. domain seravo.fi, domain alias *.seravo.fi
+        $domainAlias = $domain;
+      } else if (substr(HTTPS_DOMAIN_ALIAS, 0, 1) == '*') {
+        $domainBase = substr($domain, 0, strpos($domain, '.'));
+        $domainAliasBase = substr(HTTPS_DOMAIN_ALIAS, 1);
+        $domainAlias = $domainBase . $domainAliasBase;
+      } else {
+        $domainAlias = HTTPS_DOMAIN_ALIAS;
+      }
+      //debug: error_log("domainAlias=$domainAlias");
+    }
+
+    // If $location does not include simple https domain alias, rewrite it.
+    if ($domain != $domainAlias) {
+      $url = str_ireplace($domain, $domainAlias, $url);
+      //debug: error_log("url-o=$url");
+    }
+
   }
 
-  //debug: error_log("Location-o=$location");
-  return $location;
+  return $url;
 }
-add_filter('wp_redirect', '_redirect_https_domain_rewrite');
+
 
 /**
  * Use HTTP URL to preview posts
@@ -98,17 +107,35 @@ add_filter('wp_redirect', '_redirect_https_domain_rewrite');
  */
 function _set_preview_link() {
     $http_home_url = home_url();
-    $slug = basename( get_permalink() );
-    return "$http_home_url$slug&preview=true";
-}
-add_filter( 'preview_post_link', '_set_preview_link' );
-
-if (!defined('WP_SITEURL')) {
-  error_log("Constant WP_SITEURL is not defined");
+    $slug = basename(get_permalink());
+    return $http_home_url . $slug . '&preview=true';
 }
 
-if (!defined('HTTPS_DOMAIN_ALIAS')) {
-  error_log("Constant HTTPS_DOMAIN_ALIAS is not defined");
+
+/*
+ * Register filters only if HTTPS_DOMAIN_ALIAS defined
+ */
+if (defined('HTTPS_DOMAIN_ALIAS')) {
+
+  // A redirect or link to https may happen from pages served via http
+  add_filter('wp_redirect', '_https_domain_rewrite');
+  add_filter('login_url', '_https_domain_rewrite');
+  add_filter('logout_url', '_https_domain_rewrite');
+  add_filter('admin_url', '_https_domain_rewrite');
+
+  // These are only needed if site is already accessed via https
+  if (is_ssl()) {
+    add_filter('plugins_url', '_https_domain_rewrite', 1);
+    add_filter('content_url', '_https_domain_rewrite', 1);
+    add_filter('site_url', '_https_domain_rewrite', 1);
+    add_filter('home_url', '_https_domain_rewrite');
+    add_filter('preview_post_link', '_set_preview_link');
+  }
+} else {
+
+  error_log('Constant HTTPS_DOMAIN_ALIAS is not defined');
+
 }
+
 
 ?>
