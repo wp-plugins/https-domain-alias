@@ -1,15 +1,13 @@
 <?php
-
 /**
  * Plugin Name: HTTPS domain alias
  * Plugin URI: https://github.com/Seravo/wp-https-domain-alias
  * Description: Enable your site to have a different domains for HTTP and HTTPS. Useful e.g. if you have a wildcard SSL/TLS certificate for server but not for each site.
- * Version: 0.8
- * Author: Otto Kekäläinen / Seravo Oy
+ * Version: 0.9
+ * Author: Otto Kekäläinen, Antti Kuosmanen / Seravo Oy
  * Author URI: http://seravo.fi
  * License: GPLv3
  */
-
 /*  Copyright 2014  Otto Kekäläinen / Seravo Oy
 
     This program is free software; you can redistribute it and/or modify
@@ -25,6 +23,8 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
+
 /**
  * @package HTTPS_Domain_Alias
  *
@@ -121,8 +121,9 @@ function _set_preview_link($url) {
     return $url;
 }
 
+
 /**
- * DEbug wrapper
+ * Debug wrapper
  *
  *
  * @param string $url
@@ -141,6 +142,7 @@ function _debug_rewrite($url, $path=false, $plugin=false, $extra=false) {
   error_log("return=$url");
   return $url;
 }
+
 
 /*
  * Register filters only if HTTPS_DOMAIN_ALIAS defined
@@ -167,6 +169,15 @@ if (defined('HTTPS_DOMAIN_ALIAS')) {
 
 }
 
+/*
+ * Make sure this plugin loads as first so that the filters will be applied
+ * to all plugins before they fetch or define any URLs.
+ *
+ * This function will only take effect at the time when some plugin is activated,
+ * does not apply directly for old installs and in general is brittle to brake,
+ * as something else might edit the plugin list in the database options table
+ * and thus lower the priorty for this plugin.
+ */
 function https_domain_alias_must_be_first_plugin() {
   // ensure path to this file is via main wp plugin path
   $wp_path_to_this_file = preg_replace('/(.*)plugins\/(.*)$/', WP_PLUGIN_DIR."/$2", __FILE__);
@@ -181,4 +192,32 @@ function https_domain_alias_must_be_first_plugin() {
 }
 add_action('activated_plugin', 'https_domain_alias_must_be_first_plugin');
 
+/*
+ *
+ */
+
+// create a readme page in the settings menu
+add_action('admin_menu', 'https_domain_alias_readme');
+
+function https_domain_alias_readme() {
+
+	add_options_page('HTTPS Domain Alias', 'HTTPS Domain Alias', 'administrator', __FILE__, 'build_readme_page', plugins_url('/images/icon.png', __FILE__));
+
+}
+
+function build_readme_page() {
 ?>
+
+<div class="wrap">
+
+	<h2>HTTPS Domain Alias</h2>
+
+	<?php include('readme.html'); ?>
+
+	<p>&nbsp;</p>
+
+	<p><small>HTTPS Domain Alias is made by <a href="http://seravo.fi/">Seravo Oy</a>, which specializes in open source support services and among others is the only company in Finland to provide [WordPress Premium Hosting](http://seravo.fi/wordpress-palvelu).</small></p>
+
+</div>
+
+<?php } ?>
