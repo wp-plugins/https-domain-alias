@@ -1,10 +1,10 @@
 === HTTPS domain alias ===
-Contributors: ottok
+Contributors: ottok, Zuige
 Tags: https, ssl, tls, alias, domain
 Donate link: http://seravo.fi/
 Requires at least: 3.8
-Tested up to: 3.8
-Stable tag: 0.95
+Tested up to: 3.9.1
+Stable tag: 1.0
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -28,7 +28,7 @@ Source available at https://github.com/Seravo/wp-https-domain-alias
 
 == Installation ==
 
-1. Upload `https-domain-alias.php` to the `/wp-content/plugins/` directory.
+1. Upload plugin to the `/wp-content/plugins/` directory.
 2. Activate the plugin through the "Plugins" menu in WordPress.
 3. Make sure the `wp-config.php` defines the needed constants.
 
@@ -78,6 +78,9 @@ Example when on **coss.fi** HTTPS_DOMAIN_ALIAS is **coss.seravo.fi**:
 
 Note that complete commit log is available at https://github.com/Seravo/wp-https-domain-alias/commits/master
 
+=== 1.0 ===
+* Mature enough for official 1.0 release
+
 === 0.8 ===
 * Fix home_url ininite loop and thus enable rewrites for it too
 
@@ -105,8 +108,8 @@ Note that complete commit log is available at https://github.com/Seravo/wp-https
 
 == Upgrade Notice ==
 
-= 0.1 =
-* Initial release.
+=== 0.9 ===
+* All OK!
 
 (This readme.txt is made to satisfy official WordPress plugin directory requirements.)
 
