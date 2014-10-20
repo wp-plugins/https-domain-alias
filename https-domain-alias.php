@@ -1,16 +1,15 @@
 <?php
-
 /**
  * Plugin Name: HTTPS domain alias
  * Plugin URI: https://github.com/Seravo/wp-https-domain-alias
  * Description: Enable your site to have a different domains for HTTP and HTTPS. Useful e.g. if you have a wildcard SSL/TLS certificate for server but not for each site.
- * Version: 1.0.3
- * Author: Otto Kekäläinen (Seravo Oy) and Antti Kuosmanen (Seravo Oy)
+ * Version: 1.0.4
+ * Author: Seravo Oy
  * Author URI: http://seravo.fi
  * License: GPLv3
  */
 
-/** Copyright 2014  Otto Kekäläinen / Seravo Oy
+/** Copyright 2014 Seravo Oy
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 3, as
@@ -127,7 +126,7 @@ function htsda_debug_rewrite( $url, $path=false, $plugin = false, $extra = false
 function htsda_home_url_rewrite( $url ) {
 
 	//don't rewrite urls for polylang settings
-	if ( $_GET['page'] == 'mlang' ) {
+	if ( isset($_GET['page']) && $_GET['page'] == 'mlang' ) {
 		return $url;
 	}
 
@@ -195,10 +194,14 @@ function is_login_page() {
  */
 add_action( 'wp', 'htsda_https_domain_alias_redirect_visitors' );
 function htsda_https_domain_alias_redirect_visitors() {
-	if ( ! strpos( get_option( 'HOME' ), $_SERVER['HTTP_HOST'] ) 
-		&& ! is_user_logged_in() && ! is_login_page() 
-		&& ! ( defined('MULTISITE') && MULTISITE ) )  {
-		
+	
+	// check if visitor is currently in a domain alias location
+	$is_on_domain_alias = strpos( get_option( 'HOME' ), $_SERVER['HTTP_HOST'] );
+
+	if (	! $is_on_domain_alias && 
+			! is_user_logged_in() && 
+			! is_login_page() && 
+			! is_multisite() )  {
 		wp_redirect(get_option( 'HOME' ) . $_SERVER['REQUEST_URI'], 301 );
 	}
 }
